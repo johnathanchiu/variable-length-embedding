@@ -1,0 +1,26 @@
+experiment_name: "rnn_tokenizer"
+
+seed: 2023
+max_epochs: 100
+batch_frequency: 1000
+gradient_clip_val: 0
+img_batch_frequency: 50
+sample_intermediates: True
+log_imgs_ds_factor: 4.0
+
+model:
+  target: vle.rnn.TokenModel
+  params: 
+    simple_experiment: True
+    lr: 1e-3
+    num_tokens: 10
+
+data:
+  target: vle.data.loader.CollectiveDataloader
+  params:
+    shuffle: True
+    batch_size: 256
+    num_workers: 8
+    datasets:
+      cifar: "/fsx/home/johnathan/data"
+          

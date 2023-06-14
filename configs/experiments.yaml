@@ -1,0 +1,99 @@
+experiment_name: "experiments_without_mask_loss"
+
+seed: 2023
+max_epochs: 2000
+gradient_clip_val: 0.1
+batch_frequency: 1000
+img_batch_frequency: 100
+sample_latent: False
+sample_intermediates: True
+
+model:
+  target: vle.experiment.AutoEncoder
+  params: 
+    max_tokens: 6
+    min_tokens: 2
+    update_token_dist_step: 500
+    sigmoid_annealing_steps: 100
+
+    learning_rate: 1e-4
+
+    use_p_loss: False
+    p_mult: 1e-1
+    mask_mult: 1.0
+    
+    saliency:
+      target: vle.modules.SalinecyModel
+      params:
+        in_channels: 4
+        base_channels: 32
+        channel_mults:
+          - 1
+          - 2
+          - 4
+
+        memory_network:
+          target: vle.modules.lstm.ConvLSTM
+          params:
+            n_layers: 1
+            input_channels: 32
+            hidden_channels: 64
+            use_token_embedder: False
+
+    encoder:
+      target: vle.modules.MemoryEncoder
+      params:
+        img_channels: 3
+        base_channels: 32
+        latent_channels: 4
+        num_res_blocks: 2
+        num_groups: 1
+        channel_mults:
+          - 1
+          - 2
+          - 4
+          - 4
+          - 4
+        
+    decoder:
+      target: vle.modules.Decoder
+      params:
+        img_channels: 3
+        base_channels: 32
+        latent_channels: 4
+        num_res_blocks: 2
+        num_groups: 1
+        channel_mults:
+          - 1
+          - 2
+          - 4
+          - 4
+          - 4
+
+data:
+  target: vle.data.laion.WebDataModuleFromConfig
+  params:
+    tar_base: "pipe:aws s3 cp --quiet s3://runway-research-datasets/laion/improved_aesthetics_4.75plus/"
+
+    min_size: 512
+    max_pwatermark: 0.4999
+
+    batch_size: 3
+    num_workers: 8
+    multinode: True
+
+    partitions:
+      train:
+        shards: '{000000..098853}.tar -'
+        shuffle: 10000
+        image_key: jpg
+
+    custom_batcher:
+      target: vle.data.batcher.AspectRatiosBatcher
+      params:
+        resolution_constant: 262144 # 512 x 512
+        aspect_ratios:
+          - [1, 1]
+          - [4, 3]
+          - [16, 9]
+          

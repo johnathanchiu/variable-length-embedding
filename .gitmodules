@@ -1,0 +1,3 @@
+[submodule "develop/PerceptualSimilarity"]
+	path = develop/PerceptualSimilarity
+	url = git@github.com:johnathanchiu/PerceptualSimilarity.git

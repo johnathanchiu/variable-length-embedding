@@ -1,0 +1,71 @@
+experiment_name: "vanilla_vle"
+
+seed: 2023
+max_epochs: 2000
+gradient_clip_val: 0.1
+batch_frequency: 1000
+img_batch_frequency: 100
+sample_intermediates: True
+
+model:
+  target: vle.model.AutoEncoder
+  params:
+    max_tokens: 4
+    update_token_dist_step: 2000
+    learning_rate: 1e-3
+    use_p_loss: false
+    p_mult: 0.1
+
+    encoder:
+      target: vle.modules.Encoder
+      params:
+        img_channels: 3
+        base_channels: 32
+        latent_channels: 4
+        num_res_blocks: 4
+        num_groups: 1
+        channel_mults:
+        - 1
+        - 2
+        - 4
+        - 4
+
+    decoder:
+      target: vle.modules.Decoder
+      params:
+        img_channels: 3
+        base_channels: 32
+        latent_channels: 4
+        num_res_blocks: 4
+        num_groups: 1
+        channel_mults:
+        - 1
+        - 2
+        - 4
+        - 4
+
+data:
+  target: vle.data.laion.WebDataModuleFromConfig
+  params:
+    tar_base: pipe:aws s3 cp --quiet s3://runway-research-datasets/laion/improved_aesthetics_4.75plus/
+    min_size: 512
+    max_pwatermark: 0.4999
+    batch_size: 4
+    num_workers: 8
+    multinode: true
+    partitions:
+      train:
+        shards: '{000000..098853}.tar -'
+        shuffle: 10000
+        image_key: jpg
+    custom_batcher:
+      target: vle.data.batcher.AspectRatiosBatcher
+      params:
+        resolution_constant: 262144
+        aspect_ratios:
+        - - 1
+          - 1
+        - - 4
+          - 3
+        - - 16
+          - 9

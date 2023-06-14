@@ -1,0 +1,181 @@
+March 28th, 2023
+- Add LSTM in encoder instead of in the latent space
+- Add checkpoint saving on ctrl + c [check]
+- Add resuming properly [check]
+- Save intermediate tokens
+
+
+April 1st, 2023
+We only apply sigmoid to compute the losses. 
+If we look at the sigmoid function we desire values to become more negative and more positive. 
+More negative implies closer to 0 and more positive implies closer to 1
+
+Good results:
+Remove mask on auxiliary loss
+
+
+April 4th, 2023
+We notice that forcing the model to try to output binary masks 
+results in one full mask, one empty mask, repated! We think this is a 
+result of the BCE loss with the previous mask.
+
+We need to find a way to make sure that is not the optimal solution 
+whereas the masks should be binary but not fully one or fully empty
+
+
+April 10th, 2023
+Trying better ways of enforcing multiple masks to separate information
+    - Remove mask input to model since the input ranges are different
+    - Check if the annealing of the final reconstruction loss is causing issues
+    - Complete random sampling of number of tokens at each global step
+
+Add KL Divergence later on
+
+
+April 12th, 2023
+Using actual residuals (image - reconstruction) works really well with a hidden state in the encoder
+Fixed mode collapse by using $e^-x$ loss and imposing on direct previous mask and sum of all previous masks
+Added a token that tells the model the numnber of tokens we are requesting
+
+
+April 14th, 2023
+NOT CONCLUSIVE but it seems to more more sense to put the LSTM in the encoder 
+after the initial convolution than anywhere else
+
+Maybe add normalization again for inputs
+
+Need to find a better way to impose the mask losses, meaning that they should be as close to 0 or 1 as possible
+    - Remove `mse_with_mask` when you already multiply the mask to add to the image (otherwise it will multiply it twice)
+    - Potentially adding the sigmoid annealing scale
+        Let earlier steps figure out masks, let later steps figure out reconstruction
+
+Add the intermediate mask directly and use tanh on the sum, the idea is that larger values go to 1
+
+
+April 17th, 2023
+Impose auxiliary reconstruction loss to be only what is inputted to the model
+
+
+April 18th, 2023
+Try making the final MSE Loss imposed on the full input/output (no more mask mse loss)
+
+Seems like part of the reason as to why this model works well is because of the smaller latent space
+It captures less information per token therefore lets the remaining tokens capture other aspects of the image
+
+Take a look at how the intermediate reconstructions are added
+
+
+April 20th, 2023
+Observed that the number of latent channels has an effect on the different masks (mode collapse when latent channels is 3)
+
+
+April 23rd, 2023
+Noticed that residuals passed into model is a good method for getting better reconstructions but maybe not as good for masks
+
+
+April 25th, 2023
+Adding smoothing loss is not okay with mask inverse inputs to saliency model
+
+
+April 27th, 2023
+Fixed code and found some normalization/logging issues
+Trying a model without imposing explicit mask differences loss
+
+Experiments today:
+1. Moved LSTM into saliency model
+2. Vanilla model, input residuals to model
+    - 2023-04-27T05-15-25_mask_precursor_model_residual_input
+3. Add LSTM into encoder as well
+
+
+Next experiments:
+Pass masks into saliency model as well to prevent mode collapse and include sigmoid annealing scale
+    - These didn't work well, faster mode collapse
+
+
+April 28th, 2023
+Seems like larger saliency model results in a mode collapse & striped masks
+The saliency mask with two stacked residual layers work really well for some weird reaons
+
+Some conclusions from today;
+    - The size of the saliency model should not be too large
+    - We don't need auxiliary reconstruction loss and final reconstruction loss together
+    - The encoder should have a memory network, do not put memory network in saliency alone
+    - Scaling the sigmoid from the saliency model output causes worse reconstructions
+    - Clamping the masks is necessary (with the scaled tanh function)
+
+Results:
+- 2023-04-28T06-10-22_experimenting_with_masks
+- 2023-04-28T06-10-28_experiments_without_mask_loss
+
+Next steps:
+Want to conclude whether passing the mask residuals is better 
+or passing in the image with the masks is better
+or passing in the image residuals is better
+    - These all seem to perform equally well
+
+
+April 29th, 2023
+Try one last thing, using the constructor + deconstructor to piece the images back together
+
+
+
+
+
+
+Highlight 3 things:
+1. Variable length embeddings: the vanilla concept of it
+    - iteratively calling on the model and passing in the residuals
+    - evaluation: 
+        talk about why it needs to be trained jointly, 
+        use the same loop for VAEs and check performance
+        I did this previously and the reconstruction loss 
+        for each additional token decreases unlike the VAEs
+
+2. Decomposing the model a bit by adding the saliency head
+    - We can better interpret what the model is encoding in each latent space using the masks
+    - This may compromise performance a bit
+    - evalution:
+        separation of latent space, i.e. for an image with a larger number 
+        of objects we see that each latent space token represents something different
+        to examine this, we want to look at cosine similarity of the 
+        embeddings for labeled data (clustering)
+
+3. Additional lesser point: self-supervision for VAEs
+    - Generating masks in self-supervised manner
+    - No need to evalute this part, we can just state that its preliminary work
+
+
+
+What I've tried this past week
+1. I noticed that a very large saliency model does not actually work well
+    - This results in a mode collapse
+2. The memory network should only exist in the encoder
+    - If you put in the saliency in the saliency model it also results in mode collapse
+3. What exactly to input into the model
+    - The original image + the mask directly
+    - The masked residuals: (1 - mask) * x
+    - The residuals directly: x - rec
+
+What I want to try
+1. Using the constructor and deconstructor model
+    - Use the saliency model as the deconstructor, pass in input and reconstruction
+    - Use a residual block to sum the intermediate reconstructions and the total reconstructions
+
+
+
+
+May 1st, 2023
+16 days until deadline
+Models I want to train:
+1. Vanilla VLE (see model.py)
+2. Mask Saliency VLE
+3. Mask Inherent VLE
+
+
+The things I will incorporate from my takeaways
+    - Always pass in [-1, 1] input and then normalize 
+    - Use LSTM in immediately after first layer
+    - Use mask difference loss
+
+I want to keep model.py, experiment.py, experiment5.py
