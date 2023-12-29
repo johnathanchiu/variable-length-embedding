@@ -1,5 +1,7 @@
 # Variable Length Embeddings
 
+An implementation of our paper: https://arxiv.org/abs/2305.09967
+
 ## Requirements
 
 Setting up conda environments with the following command
